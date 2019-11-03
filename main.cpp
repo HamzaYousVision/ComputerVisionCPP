@@ -66,8 +66,7 @@ class Rectangle
         int ymin;
         int xmax;
         int ymax;
-    private:
-        int Area();
+    int Area();
 };
 
 int Rectangle::Area()
