@@ -3,9 +3,16 @@
 #include <sstream>
 #include <vector>
 
+#include"opencv/cv.h"
+#include"opencv/highgui.h"
+#include"opencv/cvaux.h"
+#include"opencv2/core/core.hpp"
+#include"opencv2/features2d/features2d.hpp"
+#include"opencv2/nonfree/features2d.hpp"
+
 using namespace std;
 const int C = 8;
-const int L = 10;
+const int L = 15;
 
 int toInt(string s)
 {
@@ -15,17 +22,32 @@ int toInt(string s)
     return x;
 }
 
-vector<vector<string> > readDataFromFile()
+class DataLoader
+{
+private:
+    int N;
+    vector<vector<string> > data;
+public:
+    DataLoader(int);
+    void readFromFile();
+    void displayData();
+
+    vector<vector<string> > getData();
+};
+
+DataLoader::DataLoader(int Number)
+{
+    N = Number;
+}
+
+void DataLoader::readFromFile()
 {
     fstream file;
     file.open("test_labels.csv");
     string line;
     getline(file, line);
-//    cout<<line<<endl;
-
-    vector<vector<string> > data;
     string d;
-    for (int l = 0; l < L; l++)
+    for (int l = 0; l < N; l++)
     {
         getline(file, line);
         stringstream s(line);
@@ -33,17 +55,12 @@ vector<vector<string> > readDataFromFile()
         for (int c = 0; c < C; c++)
         {
             getline(s, d, ',');
-
             data[l].push_back(d);
-//            cout<<data[l][c]<<"    ";
         }
-//        cout<<endl;
     }
-
-    return data;
 }
 
-void displayData(vector<vector<string> > data)
+void DataLoader::displayData()
 {
     for (int i=0 ; i<L ; i++)
     {
@@ -55,48 +72,139 @@ void displayData(vector<vector<string> > data)
     }
 }
 
-class Rectangle
+vector<vector<string> > DataLoader::getData()
 {
-    public:
-        string name;
-        int width;
-        int height;
-        string classe;
-        int xmin;
-        int ymin;
-        int xmax;
-        int ymax;
-    int Area();
-};
-
-int Rectangle::Area()
-{
-    int h = xmax - xmin;
-    int w = ymax - ymin;
-    int S = h * w;
-    return S;
+    return data;
 }
 
+struct Size
+{
+    int height;
+    int width;
+};
+
+struct Point
+{
+    int x;
+    int y;
+};
+
+class BoundBox
+{
+    private:
+        string name;
+        string classe;
+        Point corner;
+        Size box_size;
+    public:
+        Size img_size;
+
+        int Area();
+        Point Centroid();
+
+        string getName();
+        string getClass();
+        Point getCorner();
+        Size getSize();
+
+        void setName(string);
+        void setClass(string);
+        void setCorner(int, int);
+        void setSize(int, int);
+
+        void displayImage(bool);
+};
+
+string BoundBox::getName()
+{
+    return name;
+}
+
+string BoundBox::getClass()
+{
+    return classe;
+}
+
+Point BoundBox::getCorner()
+{
+    return corner;
+}
+
+Size BoundBox::getSize()
+{
+    return box_size;
+}
+
+void BoundBox::setName(string in_name)
+{
+    name = in_name;
+}
+
+void BoundBox::setClass(string in_class)
+{
+    classe = in_class;
+}
+
+void BoundBox::setCorner(int xx, int yy)
+{
+    corner.x = xx;
+    corner.y = yy;
+}
+
+void BoundBox::setSize(int h, int w)
+{
+    box_size.height = h;
+    box_size.width = w;
+}
+
+int BoundBox::Area()
+{
+    return box_size.height*box_size.width;
+}
+
+Point BoundBox::Centroid()
+{
+    Point p;
+    p.x = corner.x + box_size.height/2;
+    p.y = corner.y + box_size.width/2;
+    return p;
+}
+
+void BoundBox::displayImage(bool rect=false)
+{
+    string new_name = "images/test/"+name;
+
+
+    cv::Mat img = cv::imread(new_name);
+    if (rect)
+    {
+        cv::Point pt1(corner.x, corner.y);
+        cv::Point pt2(corner.x+box_size.height, corner.y+box_size.width);
+        cv::rectangle(img, pt1, pt2, cv::Scalar(0, 255, 0));
+    }
+    cv::imshow(name, img);
+    cv::waitKey(0);
+}
 
 int main()
 {
-    vector<vector<string> > data;
-    data = readDataFromFile();
+    DataLoader loader(L);
+    loader.readFromFile();
+    vector<vector<string> > data = loader.getData();
     // affichae
-    displayData(data);
+    loader.displayData();
     //data to class
-    Rectangle rectA;
-    rectA.name = data[0][0];
-    rectA.width= toInt(data[0][1]);
-    rectA.height= toInt (data [0][2]);
-    rectA.classe=  data [0][3];
-    rectA.xmin= toInt (data[0][4]);
-    rectA.ymin= toInt (data [0][5]);
-    rectA.xmax= toInt (data [0][6]);
-    rectA.ymax= toInt (data [0][7]);
+    vector<BoundBox> boxes(L);
+    for (int k = 0; k < L; k++)
+    {
+        boxes[k].setName(data[k][0]);
+        boxes[k].setClass(data [k][3]);
+        boxes[k].setCorner(toInt(data[k][4]), toInt(data[k][5]));
+        boxes[k].setSize(toInt(data[k][6]) - toInt(data[k][4]), toInt(data[k][7]) - toInt(data[k][5]));
 
-    int s = rectA.Area();
-    cout<<s<<endl;
+        boxes[k].displayImage(true);
+        cout<<boxes[k].getClass()<<endl;
+    }
 
 
 
